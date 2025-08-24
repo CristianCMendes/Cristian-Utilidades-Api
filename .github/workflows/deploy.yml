@@ -39,4 +39,4 @@ jobs:
 
       - name: compila o projeto
         working-directory: ./Utilidades.Api
-        run: dotnet build --project ./Utilidades.Api/Utilidades.Api.csproj
+        run: dotnet build
