@@ -25,12 +25,13 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v4
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: lista os arquivos de onde ta
+        run: ls
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+      - name: instala o dotnet
+        uses: actions/setup-dotnet@v4.3.1
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: executa o dotnet
+        run: dotnet run --project ./Utilidades.Api/Utilidades.Api.csproj
