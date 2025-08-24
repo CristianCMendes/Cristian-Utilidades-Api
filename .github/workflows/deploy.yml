@@ -33,5 +33,8 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: executa o dotnet
-        run: dotnet run --project ./Utilidades.Api/Utilidades.Api.csproj
+      - name: restaura o projeto
+        run: dotnet restore --project ./Utilidades.Api/Utilidades.Api.csproj
+
+      - name: compila o projeto
+        run: dotnet build --project ./Utilidades.Api/Utilidades.Api.csproj
