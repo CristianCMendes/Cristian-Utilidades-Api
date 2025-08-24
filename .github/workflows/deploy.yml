@@ -13,10 +13,10 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: restore
-        run: dotnet restore ./Utilidades.Api/
+        run: dotnet restore ./Utilidades.Api/Utilidades.Api.csproj
 
       - name: build
-        run: dotnet build ./Utilidades.Api/
+        run: dotnet build ./Utilidades.Api/Utilidades.Api.csproj
 
       - name: publish
-        run: dotnet publish ./Utilidades.Api/ -c Release -o publish
+        run: dotnet publish ./Utilidades.Api/Utilidades.Api.csproj -c Release -o publish
