@@ -1,0 +1,30 @@
+﻿using EntityEase.Models.Interfaces.Identity;
+using EntityEase.Models.Interfaces.Identity.Naming;
+using EntityEase.Models.Interfaces.Tracking;
+using Utilidades.Api.Models.Identity;
+using Utilidades.Api.Models.SecretFriend.Dto;
+
+namespace Utilidades.Api.Models.SecretFriend;
+
+public record SecretFriend : IEEIdentifiable, IEENamed, IEECreatableBy<User, int> {
+    public int Id { get; set; }
+    public string Name { get; set; }
+    public string? Description { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public virtual User? CreatedByEntity { get; set; }
+    public int CreatedById { get; set; }
+    public DateTime Date { get; set; }
+    public decimal? MinimumPrice { get; set; }
+    public decimal? MaximumPrice { get; set; }
+    public virtual ICollection<SecretFriendWishlist> Wishlists { get; set; } = [];
+    public virtual ICollection<SecretFriendMember> Members { get; set; } = [];
+
+    public SecretFriend() { }
+
+    public SecretFriend(CreateSecretFriendDto dto) : this() {
+        Name = dto.Name;
+        Description = dto.Description;
+        MinimumPrice = dto.MinimumPrice;
+        MaximumPrice = dto.MaximumPrice;
+    }
+}

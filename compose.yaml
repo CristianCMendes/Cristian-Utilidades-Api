@@ -1,0 +1,35 @@
+﻿services:
+  db-postgres:
+    image: postgres:17.5
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: utilidades
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./volumes/postdata:/var/lib/postgresql/data
+  
+  redis:
+    image: redis:8.2.1
+    ports:
+      - "6379:6379"
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - REDIS_APPENDONLY=yes
+
+  swagger:
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8080:8080"
+    environment:
+      - API_URL=http://172.31.80.1:5127/openapi/v1.json
+    network_mode: bridge
+
+volumes:
+  volumes:
+    driver: local
+    driver_opts:
+      type: none
+      device: ./volumes
+      o: bind
