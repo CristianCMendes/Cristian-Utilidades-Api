@@ -13,6 +13,7 @@ jobs:
           dotnet-version: '9.0.x'
 
       - name: restore
+        working-directory: ./Utilidades.Api
         run: dotnet restore ./Utilidades.Api/Utilidades.Api.csproj
 
       - name: build
