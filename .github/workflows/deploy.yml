@@ -14,7 +14,7 @@ jobs:
 
       - name: restore
         working-directory: ./Utilidades.Api
-        run: dotnet restore ./Utilidades.Api/Utilidades.Api.csproj
+        run: dotnet restore
 
       - name: build
         run: dotnet build ./Utilidades.Api/Utilidades.Api.csproj
