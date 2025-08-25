@@ -6,7 +6,9 @@ namespace Utilidades.Api.Extensions;
 public static class QueryExtensions {
     public static (T[] Data, PaginationResponse Pagination)
         Paginate<T>(this IQueryable<T> query, Pagination pagination) {
-        return (query.Skip(pagination.Skip).Take(pagination.Take).ToArray(), new() {
+        var p = new PaginationResponse(pagination);
+
+        return (query.Skip(p.Skip).Take(p.Take).ToArray(), p with {
             Total = query.Count(),
         });
     }
@@ -14,7 +16,9 @@ public static class QueryExtensions {
     public static async Task<(T[] Data, PaginationResponse Pagination)>
         PaginateAsync<T>(this IQueryable<T> query, Pagination pagination,
             CancellationToken cancellationToken = default) {
-        return (await query.Skip(pagination.Skip).Take(pagination.Take).ToArrayAsync(cancellationToken), new(pagination) {
+        var p = new PaginationResponse(pagination);
+
+        return (await query.Skip(p.Skip).Take(p.Take).ToArrayAsync(cancellationToken), p with {
             Total = await query.CountAsync(cancellationToken),
         });
     }

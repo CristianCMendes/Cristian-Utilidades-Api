@@ -16,6 +16,13 @@ public record SecretFriend : IEEIdentifiable, IEENamed, IEECreatableBy<User, int
     public DateTime Date { get; set; }
     public decimal? MinimumPrice { get; set; }
     public decimal? MaximumPrice { get; set; }
+    public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Allow any user to draw friend, even if they are not a admin
+    /// </summary>
+    public bool AllowPick { get; set; } = true;
+
     public virtual ICollection<SecretFriendWishlist> Wishlists { get; set; } = [];
     public virtual ICollection<SecretFriendMember> Members { get; set; } = [];
 
@@ -24,6 +31,7 @@ public record SecretFriend : IEEIdentifiable, IEENamed, IEECreatableBy<User, int
     public SecretFriend(CreateSecretFriendDto dto) : this() {
         Name = dto.Name;
         Description = dto.Description;
+        Date = dto.Date;
         MinimumPrice = dto.MinimumPrice;
         MaximumPrice = dto.MaximumPrice;
     }

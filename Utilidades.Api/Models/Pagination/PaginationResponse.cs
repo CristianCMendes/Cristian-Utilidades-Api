@@ -1,6 +1,8 @@
-﻿namespace Utilidades.Api.Models.Pagination;
+﻿using System.Text.Json.Serialization;
 
-public class PaginationResponse : Pagination {
+namespace Utilidades.Api.Models.Pagination;
+
+public record PaginationResponse : Pagination {
     public int Total { get; init; }
     public int Pages => (int)Math.Ceiling(Total / (double)PageSize);
     public bool HasNext => Page < Pages;
@@ -11,4 +13,6 @@ public class PaginationResponse : Pagination {
         Page = from.Page;
         PageSize = from.PageSize;
     }
+    [JsonIgnore]public int Skip => int.Max(0, (Page - 1) * PageSize);
+    [JsonIgnore]public int Take => int.Max(1, PageSize);
 };

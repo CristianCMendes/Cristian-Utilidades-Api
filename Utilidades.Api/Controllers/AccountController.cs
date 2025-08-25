@@ -16,11 +16,12 @@ public class AccountController(
     IRedisService redisService,
     IAuthenticationService authenticationService,
     IMailService mailService)
-    : ApiControllerBase(dbContext) {
+    : ApiControllerBase {
     private UtilDbContext DbContext { get; } = dbContext;
     private IAuthenticationService AuthenticationService { get; } = authenticationService;
 
     [HttpPost("Login")]
+    [ProducesResponseType<UserLoginResponse>(200)]
     public async Task<Response<UserLoginResponse>> Login(
         [Bind(nameof(user.Email), nameof(user.Password))] [FromBody]
         UserLoginDto user) {
@@ -36,7 +37,6 @@ public class AccountController(
         [Bind(nameof(userCreate.Name), nameof(userCreate.Email), nameof(userCreate.Password))] [FromBody]
         UserCreateDto userCreate) {
         var connectionId = HttpContext.Connection.LocalIpAddress?.ToString() ?? HttpContext.Connection.Id;
-        var t = redisService.Get<UserCreatedCache>(connectionId);
 
         if (await DbContext.Users.FirstOrDefaultAsync(x => x.Email == userCreate.Email) is UserResponse userFound) {
             return new(userFound) {
@@ -48,7 +48,7 @@ public class AccountController(
                 },
                 Links = {
                     new() {
-                        Reference = "/"
+                        Href = "/"
                     }
                 },
                 StatusCode = StatusCodes.Status409Conflict,
@@ -57,28 +57,6 @@ public class AccountController(
 
         var created = DbContext.Users.Add(userCreate);
         await DbContext.SaveChangesAsync();
-
-        UserOtp otp = new() {
-            UserId = created.Entity.Id,
-        };
-        redisService.Set(userCreate.Email, otp);
-
-        await mailService.SendMailAsync("Sua senha de uso unico", new($"<div>Sua senha de uso unico é: {otp.Otp}</div>"),
-            userCreate.Email);
-
-
-        if (t is not null) {
-            t.UserIds = t.UserIds.Append(created.Entity.Id).ToArray();
-            redisService.Set(connectionId, t);
-        }
-        else {
-            redisService.Set(connectionId, new UserCreatedCache {
-                UserIds = [created.Entity.Id],
-                ConnectionId = connectionId,
-                InPort = HttpContext.Connection.LocalPort,
-                OutPort = HttpContext.Connection.RemotePort,
-            });
-        }
 
         if (!UtilDbContext.HasUsers) {
             // Caso não tenha usuarios na hora que o banco foi inicializado, o proximo será administrador.
@@ -89,11 +67,25 @@ public class AccountController(
             created.Entity.IsEmailConfirmed = true;
             await DbContext.SaveChangesAsync();
             UtilDbContext.HasUsers = true;
+
+            return new(created.Entity) {
+                StatusCode = 201
+            };
         }
+
+        UserOtp otp = new() {
+            UserId = created.Entity.Id,
+        };
+        redisService.Set(userCreate.Email, otp);
+
+        await mailService.SendMailAsync("Sua senha de uso unico", new($"<div>Sua senha de uso unico é: {otp.Otp}</div>"),
+            userCreate.Email);
 
         return new(created.Entity) {
             StatusCode = 201
         };
+
+
     }
 
     [HttpPost("{id}/ConfirmMail")]
