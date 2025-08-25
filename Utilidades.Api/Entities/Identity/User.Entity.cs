@@ -14,6 +14,7 @@ public class UserEntity : EEEntity<User> {
             entity.Property(e => e.Password).IsRequired();
             entity.Property(e => e.IsActive);
             entity.Property(e => e.IsEmailConfirmed);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasIndex(e => e.Email).IsUnique();
         });

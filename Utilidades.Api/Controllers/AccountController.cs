@@ -5,6 +5,7 @@ using Utilidades.Api.Context;
 using Utilidades.Api.Models.Identity;
 using Utilidades.Api.Models.Identity.Cache;
 using Utilidades.Api.Models.Identity.Dto;
+using Utilidades.Api.Models.Identity.Interface;
 using Utilidades.Api.Models.Response;
 using Utilidades.Api.Services;
 
@@ -22,7 +23,7 @@ public class AccountController(
 
     [HttpPost("Login")]
     [ProducesResponseType<UserLoginResponse>(200)]
-    public async Task<Response<UserLoginResponse>> Login(
+    public async Task<Response<IUserLogin>> Login(
         [Bind(nameof(user.Email), nameof(user.Password))] [FromBody]
         UserLoginDto user) {
         var t = HttpContext.Request.Headers;
@@ -33,13 +34,13 @@ public class AccountController(
     [HttpPost("Create")]
     [ProducesResponseType<UserResponse>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<Response<UserResponse>> Create(
+    public async Task<Response<IUserLogin>> Create(
         [Bind(nameof(userCreate.Name), nameof(userCreate.Email), nameof(userCreate.Password))] [FromBody]
         UserCreateDto userCreate) {
         var connectionId = HttpContext.Connection.LocalIpAddress?.ToString() ?? HttpContext.Connection.Id;
 
         if (await DbContext.Users.FirstOrDefaultAsync(x => x.Email == userCreate.Email) is UserResponse userFound) {
-            return new(userFound) {
+            return new((IUserLogin)userFound) {
                 Messages = {
                     new() {
                         Message = "Já existe um usuario com esse e-mail",
@@ -67,9 +68,10 @@ public class AccountController(
             created.Entity.IsEmailConfirmed = true;
             await DbContext.SaveChangesAsync();
             UtilDbContext.HasUsers = true;
+            var login = await AuthenticationService.AuthenticateAndGenerateTokenAsync(userCreate);
 
-            return new(created.Entity) {
-                StatusCode = 201
+            return new(login.Data) {
+                StatusCode = 201,
             };
         }
 
@@ -81,8 +83,14 @@ public class AccountController(
         await mailService.SendMailAsync("Sua senha de uso unico", new($"<div>Sua senha de uso unico é: {otp.Otp}</div>"),
             userCreate.Email);
 
-        return new(created.Entity) {
-            StatusCode = 201
+        return new(new UserLoginResponse(created.Entity)) {
+            StatusCode = 201,
+            Messages = {
+                new() {
+                    Message = "Usuario criado, verifique seu e-mail para obter sua senha",
+                    Type = MessageType.Info
+                }
+            }
         };
 
 

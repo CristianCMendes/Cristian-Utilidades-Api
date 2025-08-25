@@ -3,8 +3,8 @@ using Utilidades.Api.Models.Pagination;
 
 namespace Utilidades.Api.Models.Response;
 
-public class Response<T> : JsonResult, IResponse<T> {
-    public T? Data { get; }
+public class Response<T> : JsonResult, IResponse<T> where T : class {
+    public T? Data { get; set; }
     public PaginationResponse Pagination { get; set; } = new();
 
     /// <inheritdoc />
@@ -12,7 +12,7 @@ public class Response<T> : JsonResult, IResponse<T> {
 
     /// <inheritdoc />
     public List<LinkReference> Links { get; } = [];
-    
+
     public Response() : base(null) { }
 
     public Response(T? data) : this() {
@@ -29,8 +29,8 @@ public class Response<T> : JsonResult, IResponse<T> {
     /// <inheritdoc />
     public override Task ExecuteResultAsync(ActionContext context) {
         Value = new {
-            Data, 
-            Pagination, 
+            Data,
+            Pagination,
             Messages,
             Links
         };
@@ -41,8 +41,8 @@ public class Response<T> : JsonResult, IResponse<T> {
     /// <inheritdoc />
     public override void ExecuteResult(ActionContext context) {
         Value = new {
-            Data, 
-            Pagination, 
+            Data,
+            Pagination,
             Messages,
             Links
         };

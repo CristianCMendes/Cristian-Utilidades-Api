@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using Utilidades.Api.Context;
 using Utilidades.Api.Models.Identity;
 using Utilidades.Api.Models.Identity.Dto;
+using Utilidades.Api.Models.Identity.Interface;
 using Utilidades.Api.Models.Response;
 
 namespace Utilidades.Api.Services;
@@ -14,13 +15,13 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
     private UtilDbContext DbContext { get; } = dbContext;
     private IConfiguration Configuration { get; } = configuration;
 
-    public Response<UserLoginResponse> AuthenticateAndGenerateToken(UserLoginDto loginDto) {
+    public Response<IUserLogin> AuthenticateAndGenerateToken(UserLoginDto loginDto) {
         var user = GetUser(loginDto);
 
         return ValidateUser(loginDto, user);
     }
 
-    private Response<UserLoginResponse> ValidateUser(UserLoginDto loginDto, User? user) {
+    private Response<IUserLogin> ValidateUser(UserLoginDto loginDto, User? user) {
         if (user is null)
             return new() {
                 StatusCode = 401,
@@ -135,7 +136,7 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
     }
 
     /// <inheritdoc />
-    public async Task<Response<UserLoginResponse>> AuthenticateAndGenerateTokenAsync(UserLoginDto loginDto) {
+    public async Task<Response<IUserLogin>> AuthenticateAndGenerateTokenAsync(UserLoginDto loginDto) {
         var user = await GetUserAsync(loginDto);
 
         return ValidateUser(loginDto, user);

@@ -162,13 +162,12 @@ app.UseAuthorization();
 
 await using (var validationScope = app.Services.CreateAsyncScope()) {
     var dbContext = validationScope.ServiceProvider.GetRequiredService<UtilDbContext>();
-
-    // Garante que o banco foi criado e tá na ultima versão.
-    if (!dbContext.Database.HasPendingModelChanges()) {
-        await dbContext.Database.MigrateAsync();
-    }
-
+    
     try {
+        // Garante que o banco foi criado e tá na ultima versão.
+        if (!dbContext.Database.HasPendingModelChanges()) {
+            await dbContext.Database.MigrateAsync();
+        }
         // Ve se tem usuarios no banco, caso não tenha o primeiro vai ter o privilegio de administrador.
         UtilDbContext.HasUsers = await dbContext.Users.AnyAsync();
     }
