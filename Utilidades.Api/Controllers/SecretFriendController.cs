@@ -8,25 +8,28 @@ using Utilidades.Api.Models.Pagination;
 using Utilidades.Api.Models.Response;
 using Utilidades.Api.Models.SecretFriend;
 using Utilidades.Api.Models.SecretFriend.Dto;
+using Utilidades.Api.Services;
 
 namespace Utilidades.Api.Controllers;
 
-public class SecretFriendController(UtilDbContext dbContext) : ApiControllerBase(dbContext) {
-    private UtilDbContext DbContext { get; } = dbContext;
-
+public class SecretFriendController(
+    UtilDbContext dbContext,
+    ISecretFriendService secretFriendService,
+    IMailService mailService)
+    : ApiControllerBase {
     [HttpGet(nameof(List))]
     public async Task<Response<SecretFriend[]>> List(Pagination pagination) {
-        var query = DbContext.SecretFriends.AsQueryable();
-        query = query.Where(x => x.Members.Any(m => m.UserId == UserId));
+        var query = dbContext.SecretFriends.AsQueryable();
+        query = query.Where(x => x.Members.Any(m => m.UserId == HttpContext.GetCurrentUserId()));
 
         return new(await query.PaginateAsync(pagination));
     }
 
     [HttpGet("{id}")]
     public async Task<Response<SecretFriend>> Get(int id) {
-        var query = DbContext.SecretFriends.AsQueryable();
+        var query = dbContext.SecretFriends.AsQueryable();
         if (!User.IsInRole(nameof(RoleType.Master))) {
-            query = query.Where(x => x.Members.Any(m => m.UserId == UserId));
+            query = query.Where(x => x.Members.Any(m => m.UserId == HttpContext.GetCurrentUserId()));
         }
 
         var sf = await query.WhereId(id).FirstOrDefaultAsync();
@@ -36,13 +39,13 @@ public class SecretFriendController(UtilDbContext dbContext) : ApiControllerBase
         };
     }
 
-    [HttpGet("{id}/membros")]
-    public async Task<Response<SecretFriendMember[]>> GetMembers(int id, Pagination pagination) {
-        var query = DbContext.SecretFriendMembers.Where(x => x.SecretFriendId == id);
+    [HttpGet("{id}/" + nameof(Members))]
+    public async Task<Response<SecretFriendMember[]>> Members(int id, Pagination pagination) {
+        var query = dbContext.SecretFriendMembers.Where(x => x.SecretFriendId == id);
         if (!User.IsInRole(nameof(RoleType.Master))) {
-            query = query.Where(x => x.UserId == UserId);
+            query = query.Where(x => x.UserId == HttpContext.GetCurrentUserId());
         }
-        
+
         return new(await query.PaginateAsync(pagination));
     }
 
@@ -50,69 +53,78 @@ public class SecretFriendController(UtilDbContext dbContext) : ApiControllerBase
     public async Task<Response<SecretFriend>> Create([Bind(nameof(data.Name), nameof(data.Date),
             nameof(data.Description), nameof(data.MinimumPrice), nameof(data.MaximumPrice))]
         CreateSecretFriendDto data) {
-        var created = DbContext.SecretFriends.Add(new(data) {
-            CreatedById = UserId,
-            Members = [
-                new() {
-                    UserId = UserId,
-                    IsAdmin = true,
-                }
-            ]
-        });
+        var response = await secretFriendService.Create(data, HttpContext.GetCurrentUserId());
 
-        await DbContext.SaveChangesAsync();
+        await dbContext.SaveChangesAsync();
+        if (response.Data is not null) {
+            var getUrl = Url.Action(nameof(Get), new { id = response.Data.Id });
+            if (!string.IsNullOrEmpty(getUrl)) {
+                Response.Headers.Location = getUrl;
+            }
 
-        return new(created.Entity) {
-            StatusCode = 201
-        };
+            var membersUrl = Url.Action(nameof(Members), new { id = response.Data.Id });
+            if (!string.IsNullOrEmpty(membersUrl)) {
+                response.Links.Add(new() { Href = membersUrl, Rel = "members", Method = "GET" });
+            }
+
+            var addMemberUrl = Url.Action(nameof(AddMember), new { id = response.Data.Id });
+            if (!string.IsNullOrEmpty(addMemberUrl)) {
+                response.Links.Add(new() { Href = addMemberUrl, Rel = "members", Method = "POST" });
+            }
+
+            var drawUrl = Url.Action(nameof(Draw), new { id = response.Data.Id });
+            if (!string.IsNullOrEmpty(drawUrl)) {
+                response.Links.Add(new() { Href = drawUrl, Rel = "draw", Method = "POST" });
+            }
+
+            response.StatusCode = StatusCodes.Status201Created;
+        }
+
+        return response;
     }
 
-    [HttpPost("{id}/addMember")]
-    public async Task<Response<SecretFriend>> AddMember(int id, [FromBody] (int userId, bool? admin) data) {
-        var sf = await DbContext.SecretFriends.Include(x => x.Members).WhereId(id).FirstOrDefaultAsync();
+    [HttpPost("{id}/" + nameof(AddMember))]
+    public async Task<Response<SecretFriend>> AddMember(int id, [FromBody] AddSecretFriendMemberDto data) {
+        if (!await secretFriendService.CanAddMember(id, HttpContext.GetCurrentUserId())) {
+            return new() {
+                StatusCode = StatusCodes.Status401Unauthorized,
+                Messages = {
+                    new() {
+                        Message = "Usuario não tem permissão para adicionar um membro no amigo secreto",
+                        Type = MessageType.Warning
+                    }
+                }
 
+            };
+        }
+
+        var response = await secretFriendService.AddMember(id, data);
+
+        await dbContext.SaveChangesAsync();
+
+        return response;
+    }
+
+    [HttpPost("{id}/" + nameof(Draw))]
+    public async Task<Response<SecretFriend>> Draw(int id) {
+        var response = await secretFriendService.Draw(id, HttpContext.GetCurrentUserId());
+
+        var sf = response.Data;
         if (sf is null) {
-            return new() {
-                Messages = {
-                    new() {
-                        Message = "Amigo secreto não encontrado",
-                        Type = MessageType.Warning
-                    }
-                },
-                StatusCode = StatusCodes.Status404NotFound,
-            };
+            return response;
         }
 
-        // Apenas o criador ou um admin do grupo pode adicionar membros
-        if (sf.CreatedById != UserId && !sf.Members.Any(x => x.IsAdmin && x.UserId == UserId)) {
-            return new() {
-                Messages = {
-                    new() {
-                        Message = "Apenas um administrador pode adicionar membros",
-                        Type = MessageType.Warning
-                    }
-                }
-            };
+        // await dbContext.SaveChangesAsync();
+
+        foreach (var member in sf.Members) {
+            if (member.User is not null && member.UserPicked is not null) {
+                await mailService.SendMailAsync("Seu amigo secreto foi escolhido",
+                    new(
+                        $"<div>Seu amigo secreto foi escolhido no amigo secreto: {sf.Name},<br/> você tirou: {member.UserPicked.Email}<div/>"),
+                    member.User.Email);
+            }
         }
 
-        if (sf.Members.Any(x => x.UserId == data.userId)) {
-            return new() {
-                Messages = {
-                    new() {
-                        Message = "Usuario já é membro do amigo secreto",
-                        Type = MessageType.Warning
-                    }
-                }
-            };
-        }
-
-        sf.Members.Add(new() {
-            UserId = data.userId,
-            IsAdmin = data.admin ?? false
-        });
-
-        await DbContext.SaveChangesAsync();
-
-        return new(sf);
+        return response;
     }
 }

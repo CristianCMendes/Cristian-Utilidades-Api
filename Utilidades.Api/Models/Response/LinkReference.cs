@@ -1,6 +1,7 @@
 ﻿namespace Utilidades.Api.Models.Response;
 
 public record LinkReference {
-    public string? Reference { get; set; }
-    public string? Example { get; set; }
+    public string? Href { get; set; }
+    public string? Method { get; set; }
+    public string? Rel { get; set; }
 }

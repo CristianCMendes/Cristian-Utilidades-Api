@@ -12,7 +12,7 @@ public class Response<T> : JsonResult, IResponse<T> {
 
     /// <inheritdoc />
     public List<LinkReference> Links { get; } = [];
-
+    
     public Response() : base(null) { }
 
     public Response(T? data) : this() {
@@ -29,7 +29,10 @@ public class Response<T> : JsonResult, IResponse<T> {
     /// <inheritdoc />
     public override Task ExecuteResultAsync(ActionContext context) {
         Value = new {
-            Data, Pagination, Messages
+            Data, 
+            Pagination, 
+            Messages,
+            Links
         };
 
         return base.ExecuteResultAsync(context);
@@ -38,8 +41,18 @@ public class Response<T> : JsonResult, IResponse<T> {
     /// <inheritdoc />
     public override void ExecuteResult(ActionContext context) {
         Value = new {
-            Data, Pagination, Messages
+            Data, 
+            Pagination, 
+            Messages,
+            Links
         };
         base.ExecuteResult(context);
     }
+}
+
+public class Response : Response<object> {
+    public Response() : base(null) { }
+    public Response(object data) : base(data) { }
+    public Response(object data, PaginationResponse pagination) : base(data, pagination) { }
+    public Response((object Data, PaginationResponse Pagination) data) : base(data) { }
 }

@@ -17,14 +17,18 @@
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
       - REDIS_APPENDONLY=yes
-
-  swagger:
-    image: swaggerapi/swagger-ui
-    ports:
-      - "8080:8080"
+  
+  backend:
+    image: utilidades:latest
+    ports: [ "8088:80", "4443:443" ]
     environment:
-      - API_URL=http://172.31.80.1:5127/openapi/v1.json
-    network_mode: bridge
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=https://+:443;http://+:80
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=korsa.dev
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/korsa.dev.pfx
+    entrypoint: [ "dotnet", "Utilidades.Api.dll" ]
+    volumes:
+      - ./volumes/https:/https
 
 volumes:
   volumes:

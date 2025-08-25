@@ -3,7 +3,8 @@
 namespace Utilidades.Api.Context;
 
 public class RedisContext {
-    private static readonly Lazy<ConnectionMultiplexer> LazyConnection = new(() => ConnectionMultiplexer.Connect("localhost:6379"));
+    private static readonly Lazy<ConnectionMultiplexer> LazyConnection = new(() => ConnectionMultiplexer.Connect(
+        Environment.GetEnvironmentVariable("CONNECTIONSTRINGS_REDIS") ?? "localhost:6379,allowAdmin=true,abortConnect=false"));
 
     public static ConnectionMultiplexer Connection => LazyConnection.Value;
 

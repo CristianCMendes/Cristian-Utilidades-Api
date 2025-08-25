@@ -1,11 +1,14 @@
-﻿using EntityEase.Context;
+﻿using System.Linq.Expressions;
+using EntityEase.Context;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Utilidades.Api.Models.Identity;
 using Utilidades.Api.Models.SecretFriend;
 
 namespace Utilidades.Api.Context;
 
-public class UtilDbContext(DbContextOptions<UtilDbContext> options) : EEDbContext<UtilDbContext>(options) {
+public class UtilDbContext : EEDbContext<UtilDbContext> {
+    public UtilDbContext(DbContextOptions<UtilDbContext> options) : base(options) { }
     public static bool HasUsers = false;
 
     public DbSet<User> Users { get; set; }
@@ -15,19 +18,25 @@ public class UtilDbContext(DbContextOptions<UtilDbContext> options) : EEDbContex
 
     /// <inheritdoc />
     protected override void OnModelCreating(ModelBuilder modelBuilder) {
+        base.OnModelCreating(modelBuilder);
+
         modelBuilder.UseSerialColumns();
         modelBuilder.HasDefaultSchema("utilidades");
 
-        base.OnModelCreating(modelBuilder);
     }
 
     /// <inheritdoc />
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder) {
         base.ConfigureConventions(configurationBuilder);
-        
+
+
         if (Database.IsNpgsql()) {
-            configurationBuilder.Properties<DateTime>().HaveColumnType("timestamp without time zone");
+            configurationBuilder.Properties<DateTime>(x => {
+                x.HaveColumnType("timestamp with time zone");
+                
+            });
         }
 
     }
 }
+

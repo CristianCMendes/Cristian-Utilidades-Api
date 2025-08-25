@@ -8,8 +8,6 @@ public class SecretFriendWishlistEntity : EEEntity<SecretFriendWishlist> {
     /// <inheritdoc />
     public override ModelBuilder Build(ModelBuilder builder) {
         return builder.Entity<SecretFriendWishlist>(entity => {
-            entity.ToTable(EntityName);
-            
             entity.HasKey(e => new { e.SecretFriendId, e.UserId });
             entity.Property(e => e.Wish).IsRequired();
             entity.Property(e => e.Price).IsRequired(false);

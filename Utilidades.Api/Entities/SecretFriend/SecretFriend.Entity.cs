@@ -8,7 +8,6 @@ public class SecretFriendEntity : EEEntity<Models.SecretFriend.SecretFriend> {
     /// <inheritdoc />
     public override ModelBuilder Build(ModelBuilder builder) {
         return builder.Entity<Models.SecretFriend.SecretFriend>(entity => {
-            entity.ToTable(EntityName);
             
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Id).ValueGeneratedOnAdd();

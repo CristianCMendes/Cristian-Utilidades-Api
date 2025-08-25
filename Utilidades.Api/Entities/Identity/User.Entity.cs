@@ -8,7 +8,6 @@ public class UserEntity : EEEntity<User> {
     /// <inheritdoc />
     public override ModelBuilder Build(ModelBuilder builder) {
         return builder.Entity<User>(entity => {
-            entity.ToTable(EntityName);
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired();
             entity.Property(e => e.Email).IsRequired();
