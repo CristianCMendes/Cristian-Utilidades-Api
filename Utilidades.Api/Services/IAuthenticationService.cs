@@ -6,6 +6,6 @@ using Utilidades.Api.Models.Response;
 namespace Utilidades.Api.Services;
 
 public interface IAuthenticationService {
-    public Response<IUserLogin> AuthenticateAndGenerateToken(UserLoginDto loginDto);
-    public Task<Response<IUserLogin>> AuthenticateAndGenerateTokenAsync(UserLoginDto loginDto);
+    public ApiResponse<IUserLogin> AuthenticateAndGenerateToken(UserLoginDto loginDto);
+    public Task<ApiResponse<IUserLogin>> AuthenticateAndGenerateTokenAsync(UserLoginDto loginDto);
 }

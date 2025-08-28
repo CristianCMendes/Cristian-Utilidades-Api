@@ -20,15 +20,24 @@ public class SecretFriendController(
     : ApiControllerBase {
     [HttpGet(nameof(List))]
     [ProducesResponseType<ISecretFriend[]>(200)]
-    public async Task<IResponse> List(Pagination pagination) {
-        var query = dbContext.SecretFriends.AsQueryable();
-        query = query.Where(x => x.Members.Any(m => m.UserId == HttpContext.GetCurrentUserId()));
+    public async Task<IApiResponse> List([FromQuery] ListSecretFriendDto filters, Pagination pagination) {
 
-        return new Response(await query.PaginateAsync(pagination));
+        ApiResponse.Links.Add(LinkRef(nameof(Get), routeData: new { id = 1 }, rel: "get"));
+        ApiResponse.Links.Add(LinkRef(nameof(Members), routeData: new { id = 1 }, rel: "members"));
+        ApiResponse.Links.Add(LinkRef(nameof(AddMember), routeData: new { id = 1 }, rel: "addMember"));
+        ApiResponse.Links.Add(LinkRef(nameof(Draw), routeData: new { id = 1 }, rel: "draw"));
+
+        var query = secretFriendService.List(filters);
+
+        query = query.Where(x =>
+            x.Members.Any(m => m.UserId == HttpContext.GetCurrentUserId()) ||
+            x.CreatedById == HttpContext.GetCurrentUserId());
+
+        return new ApiResponse(await query.PaginateAsync(pagination));
     }
 
     [HttpGet("{id}")]
-    public async Task<IResponse> Get(int id) {
+    public async Task<IApiResponse> Get(int id) {
         var query = dbContext.SecretFriends.AsQueryable();
         if (!User.IsInRole(nameof(RoleType.Master))) {
             query = query.Where(x => x.Members.Any(m => m.UserId == HttpContext.GetCurrentUserId()));
@@ -36,63 +45,61 @@ public class SecretFriendController(
 
         var sf = await query.WhereId(id).FirstOrDefaultAsync();
 
-        return new Response(sf) {
+        ApiResponse.Links.Add(LinkRef(nameof(Members), routeData: new { id = sf?.Id ?? 1 }, rel: "members"));
+        ApiResponse.Links.Add(LinkRef(nameof(List), routeData: ListSecretFriendDto.Example(), rel: "list"));
+        ApiResponse.Links.Add(LinkRef(nameof(AddMember), routeData: new { id = sf?.Id ?? 1 }, rel: "addMember"));
+        ApiResponse.Links.Add(LinkRef(nameof(Draw), routeData: new { id = sf?.Id ?? 1 }, rel: "draw"));
+
+        return new ApiResponse(sf) {
             StatusCode = sf is null ? StatusCodes.Status404NotFound : StatusCodes.Status200OK,
         };
     }
 
     [HttpGet("{id}/" + nameof(Members))]
     [ProducesResponseType<ISecretFriendMember>(200)]
-    public async Task<IResponse> Members(int id, Pagination pagination) {
+    public async Task<IApiResponse> Members(int id, Pagination pagination) {
+        ApiResponse.Links.Add(LinkRef(nameof(Get), routeData: new { id = 1 }, rel: "get"));
+        ApiResponse.Links.Add(LinkRef(nameof(List), routeData: ListSecretFriendDto.Example(), rel: "list"));
+        ApiResponse.Links.Add(LinkRef(nameof(AddMember), routeData: AddSecretFriendMemberDto.Example, rel: "addMember"));
+        ApiResponse.Links.Add(LinkRef(nameof(Draw), routeData: new { id = 1 }, rel: "draw"));
+
         var query = dbContext.SecretFriendMembers.Where(x => x.SecretFriendId == id);
         if (!User.IsInRole(nameof(RoleType.Master))) {
             query = query.Where(x => x.UserId == HttpContext.GetCurrentUserId());
         }
 
-        return new Response(await query.PaginateAsync(pagination));
+        return new ApiResponse(await query.PaginateAsync(pagination));
     }
 
     [HttpPost(nameof(Create))]
     [ProducesResponseType<ISecretFriend>(200)]
-    public async Task<IResponse> Create([Bind(nameof(data.Name), nameof(data.Date),
+    public async Task<IApiResponse> Create([Bind(nameof(data.Name), nameof(data.Date),
             nameof(data.Description), nameof(data.MinimumPrice), nameof(data.MaximumPrice))]
         CreateSecretFriendDto data) {
-        var response = await secretFriendService.Create(data, HttpContext.GetCurrentUserId());
+        ApiResponse = await secretFriendService.Create(data, HttpContext.GetCurrentUserId());
 
         await dbContext.SaveChangesAsync();
-        if (response.Data is not null) {
-            var getUrl = Url.Action(nameof(Get), new { id = response.Data.Id });
-            if (!string.IsNullOrEmpty(getUrl)) {
-                Response.Headers.Location = getUrl;
-            }
+        var sfData = ApiResponse.GetData<SecretFriend>();
 
-            var membersUrl = Url.Action(nameof(Members), new { id = response.Data.Id });
-            if (!string.IsNullOrEmpty(membersUrl)) {
-                response.Links.Add(new() { Href = membersUrl, Rel = "members", Method = "GET" });
-            }
 
-            var addMemberUrl = Url.Action(nameof(AddMember), new { id = response.Data.Id });
-            if (!string.IsNullOrEmpty(addMemberUrl)) {
-                response.Links.Add(new() { Href = addMemberUrl, Rel = "members", Method = "POST" });
-            }
+        ApiResponse.Links.Add(LinkRef(nameof(Get), routeData: new { id = sfData?.Id ?? 1 }, rel: "get"));
+        ApiResponse.Links.Add(LinkRef(nameof(List), routeData: ListSecretFriendDto.Example(), rel: "list"));
+        ApiResponse.Links.Add(LinkRef(nameof(Members), routeData: new { id = sfData?.Id ?? 1 }, rel: "members"));
+        ApiResponse.Links.Add(LinkRef(nameof(AddMember), routeData: AddSecretFriendMemberDto.Example, rel: "addMember"));
+        ApiResponse.Links.Add(LinkRef(nameof(Draw), routeData: new { id = sfData?.Id ?? 1 }, rel: "draw"));
 
-            var drawUrl = Url.Action(nameof(Draw), new { id = response.Data.Id });
-            if (!string.IsNullOrEmpty(drawUrl)) {
-                response.Links.Add(new() { Href = drawUrl, Rel = "draw", Method = "POST" });
-            }
-
-            response.StatusCode = StatusCodes.Status201Created;
+        if (sfData != null) {
+            ApiResponse.StatusCode = StatusCodes.Status201Created;
         }
 
-        return response;
+        return ApiResponse;
     }
 
     [HttpPost("{id}/" + nameof(AddMember))]
     [ProducesResponseType<ISecretFriend>(200)]
-    
-    public async Task<IResponse> AddMember(int id, [FromBody] AddSecretFriendMemberDto data) {
+    public async Task<IApiResponse> AddMember(int id, [FromBody] AddSecretFriendMemberDto data) {
         if (!await secretFriendService.CanAddMember(id, HttpContext.GetCurrentUserId())) {
-            return new Response() {
+            return new ApiResponse() {
                 StatusCode = StatusCodes.Status401Unauthorized,
                 Messages = {
                     new() {
@@ -113,7 +120,7 @@ public class SecretFriendController(
 
     [HttpPost("{id}/" + nameof(Draw))]
     [ProducesResponseType<ISecretFriend>(200)]
-    public async Task<IResponse> Draw(int id) {
+    public async Task<IApiResponse> Draw(int id) {
         var response = await secretFriendService.Draw(id, HttpContext.GetCurrentUserId());
 
         var sf = response.Data;

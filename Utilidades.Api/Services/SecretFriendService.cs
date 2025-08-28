@@ -6,12 +6,13 @@ using Utilidades.Api.Models.Identity;
 using Utilidades.Api.Models.Response;
 using Utilidades.Api.Models.SecretFriend;
 using Utilidades.Api.Models.SecretFriend.Dto;
+using Utilidades.Api.Models.SecretFriend.Interface;
 
 namespace Utilidades.Api.Services;
 
 public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService {
     /// <inheritdoc />
-    public async Task<Response<SecretFriend>> Draw(int secretFriendId, int requesterId) {
+    public async Task<ApiResponse<SecretFriend>> Draw(int secretFriendId, int requesterId) {
         var secretFriend = await dbContext.SecretFriends.Include(x => x.Members).WhereId(secretFriendId)
             .FirstOrDefaultAsync();
         if (secretFriend is null) {
@@ -74,7 +75,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
     }
 
     /// <inheritdoc />
-    public async Task<Response<SecretFriend>> Create(CreateSecretFriendDto data, int userId) {
+    public async Task<ApiResponse<SecretFriend>> Create(CreateSecretFriendDto data, int userId) {
         var created = await dbContext.SecretFriends.AddAsync(new(data) {
             CreatedById = userId,
             Members = [
@@ -92,7 +93,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
 
 
     /// <inheritdoc />
-    public async Task<Response<SecretFriend>> AddMember(int secretFriendId, AddSecretFriendMemberDto data) {
+    public async Task<ApiResponse<SecretFriend>> AddMember(int secretFriendId, AddSecretFriendMemberDto data) {
         var sf = await dbContext.SecretFriends.Include(x => x.Members).WhereId(secretFriendId).FirstOrDefaultAsync();
         var user = await dbContext.Users
             .Where(x => x.Id == data.UserId || data.Email != null && x.Email == data.Email.AsInsensitive())
@@ -163,5 +164,61 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
         }
 
         return true;
+    }
+
+    /// <inheritdoc />
+    public IQueryable<SecretFriend> List(ListSecretFriendDto filters) {
+        var query = dbContext.SecretFriends.AsQueryable();
+        if (filters.SecretFriendId is { Length: > 0 } ids) {
+            query = query.WhereId(ids);
+        }
+
+        if (filters.CreatorId is { Length: > 0 } creatorIds) {
+            query = query.Where(x => creatorIds.Contains(x.CreatedById));
+        }
+
+        if (filters.MemberId is { Length: > 0 } memberIds) {
+            query = query.Where(x => memberIds.Contains(x.CreatedById));
+        }
+
+        if (filters.Name is { Length: > 0 } name) {
+            query = query.Where(x => x.Name.ToLower().Trim().Contains(name.AsInsensitive()));
+        }
+
+        if (filters.Description is { Length: > 0 } description) {
+            query = query.Where(x =>
+                x.Description != null && x.Description.ToLower().Trim().Contains(description.AsInsensitive()));
+        }
+
+        if (filters.DateMin is { } minDate) {
+            query = query.Where(x => x.Date >= minDate);
+        }
+
+        if (filters.DateMax is { } maxDate) {
+            query = query.Where(x => x.Date <= maxDate);
+        }
+
+        if (filters.CreatedMin is { } minCreated) {
+            query = query.Where(x => x.CreatedAt >= minCreated);
+        }
+
+        if (filters.CreatedMax is { } maxCreated) {
+            query = query.Where(x => x.CreatedAt <= maxCreated);
+        }
+
+        if (filters.MinimumPrice is { } minPrice) {
+            query = query.Where(x => x.MinimumPrice <= minPrice || x.MaximumPrice <= minPrice);
+        }
+
+        if (filters.MaximumPrice is { } maxPrice) {
+            query = query.Where(x => x.MinimumPrice >= maxPrice || x.MaximumPrice >= maxPrice);
+        }
+
+        if (filters.IsActive is { } isActive) {
+            query = query.Where(x => x.IsActive == isActive);
+        }
+
+        return query;
+
     }
 }

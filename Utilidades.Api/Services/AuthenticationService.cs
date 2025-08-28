@@ -4,6 +4,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Utilidades.Api.Context;
+using Utilidades.Api.Models.Crypt;
 using Utilidades.Api.Models.Identity;
 using Utilidades.Api.Models.Identity.Dto;
 using Utilidades.Api.Models.Identity.Interface;
@@ -11,17 +12,18 @@ using Utilidades.Api.Models.Response;
 
 namespace Utilidades.Api.Services;
 
-public class AuthenticationService(UtilDbContext dbContext, IConfiguration configuration) : IAuthenticationService {
+public class AuthenticationService(UtilDbContext dbContext, IConfiguration configuration, IRedisService redisService)
+    : IAuthenticationService {
     private UtilDbContext DbContext { get; } = dbContext;
     private IConfiguration Configuration { get; } = configuration;
 
-    public Response<IUserLogin> AuthenticateAndGenerateToken(UserLoginDto loginDto) {
+    public ApiResponse<IUserLogin> AuthenticateAndGenerateToken(UserLoginDto loginDto) {
         var user = GetUser(loginDto);
 
         return ValidateUser(loginDto, user);
     }
 
-    private Response<IUserLogin> ValidateUser(UserLoginDto loginDto, User? user) {
+    private ApiResponse<IUserLogin> ValidateUser(UserLoginDto loginDto, User? user) {
         if (user is null)
             return new() {
                 StatusCode = 401,
@@ -57,7 +59,8 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
             };
         }
 
-        if (user.Password != loginDto.Password && !string.IsNullOrEmpty(user.Password))
+        if (user.Password != loginDto.Encrypt(user.CreatedAt.Date.Day) &&
+            !string.IsNullOrEmpty(user.Password))
             return new() {
                 StatusCode = 401,
                 Messages = {
@@ -69,12 +72,19 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
             };
 
         var (token, expiresAt) = GenerateJwt(user);
-        var response = new UserLoginResponse(user) {
+        var userData = new UserLoginResponse(user) {
             Token = token,
-            Expires = expiresAt
+            RefreshToken = Guid.NewGuid(),
+            Expires = expiresAt,
         };
 
-        return new(response);
+        redisService.Set(userData.Email, new { userData.RefreshToken, userData.Id, userData.Expires });
+
+        var response = new ApiResponse<IUserLogin>(userData);
+
+        response.Messages.Add(new("Conectado com sucesso", MessageType.success));
+
+        return response;
     }
 
     private IQueryable<User> GetUserQuery => DbContext.Users.AsNoTracking().Include(x => x.Roles);
@@ -138,7 +148,7 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
     }
 
     /// <inheritdoc />
-    public async Task<Response<IUserLogin>> AuthenticateAndGenerateTokenAsync(UserLoginDto loginDto) {
+    public async Task<ApiResponse<IUserLogin>> AuthenticateAndGenerateTokenAsync(UserLoginDto loginDto) {
         var user = await GetUserAsync(loginDto);
 
         return ValidateUser(loginDto, user);

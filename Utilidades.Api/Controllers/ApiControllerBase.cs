@@ -13,11 +13,28 @@ namespace Utilidades.Api.Controllers;
 // Add 8 seconds of cache to all api routes
 [ResponseCache(Duration = 8, Location = ResponseCacheLocation.Any, NoStore = false, VaryByQueryKeys = ["*"])]
 public class ApiControllerBase : Controller {
+    private IApiResponse _apiResponse = new ApiResponse();
+
+    protected IApiResponse ApiResponse {
+        get => _apiResponse;
+        set {
+            if (_apiResponse.Links is { Count: > 0 }) {
+                value.Links.AddRange(_apiResponse.Links);
+            }
+
+            if (_apiResponse.Messages is { Count: > 0 }) {
+                value.Messages.AddRange(_apiResponse.Messages);
+            }
+
+            _apiResponse = value;
+        }
+    }
+
     /// <inheritdoc />
     public override void OnActionExecuting(ActionExecutingContext context) {
         if (HttpContext.User.Claims.Any(x => x.Type == AppClaimTypes.NoPassword && x.Value == true.ToString())) {
             if (context.ActionDescriptor.EndpointMetadata.Any(x => x is AllowAnonymousAttribute)) return;
-            context.Result = new Response() {
+            context.Result = new ApiResponse() {
                 Messages = {
                     new() {
                         Message = "O usuario deve definir uma senha para acessar",
@@ -34,6 +51,9 @@ public class ApiControllerBase : Controller {
     }
 
 
-    protected string GetRoute(string controllerName, string details) =>
-        $"api/v1/{controllerName.Replace("Controller", "")}/{details}";
+    protected LinkReference LinkRef(string actionName, string? controllerName = null, object? routeData = null,
+        string? rel = null,
+        Method? method = null) {
+        return new(Url.Action(actionName, controller: controllerName, routeData), method, rel);
+    }
 }

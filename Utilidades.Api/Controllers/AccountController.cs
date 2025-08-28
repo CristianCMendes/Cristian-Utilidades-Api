@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.BlazorIdentity.Pages.Manage;
 using Utilidades.Api.Context;
 using Utilidades.Api.Extensions;
 using Utilidades.Api.Models.Identity;
@@ -23,57 +25,69 @@ public class AccountController(
 
     [HttpPost(nameof(Login))]
     [ProducesResponseType<IUserLogin>(200)]
-    public async Task<IResponse> Login(
+    public async Task<IApiResponse> Login(
         [Bind(nameof(user.Email), nameof(user.Password))] [FromBody]
         UserLoginDto user) {
+        ApiResponse.Links.AddRange(
+            LinkRef(nameof(Register), routeData: new { user.Email, password = "*******" }, method: Method.POST),
+            LinkRef(nameof(ConfirmMail), routeData: new { user.Email, token = 111111 }, method: Method.POST));
+
         return await AuthenticationService.AuthenticateAndGenerateTokenAsync(user);
     }
 
     [HttpPost(nameof(Register))]
     [ProducesResponseType<IUser>(StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
-    public async Task<IResponse> Register(
+    public async Task<IApiResponse> Register(
         [Bind(nameof(userCreate.Name), nameof(userCreate.Email), nameof(userCreate.Password))] [FromBody]
         UserCreateDto userCreate) {
-        if (await dbContext.Users.FirstOrDefaultAsync(x => x.Email == userCreate.Email) is UserResponse userFound) {
+
+        EntityEntry<User> created;
+
+        ApiResponse.Links.AddRange(
+            LinkRef(nameof(Login), routeData: new { userCreate.Email, password = "*******" }, method: Method.POST),
+            LinkRef(nameof(ConfirmMail), routeData: new { userCreate.Email, token = 111111 }, method: Method.POST));
+
+
+        if (await dbContext.Users.FirstOrDefaultAsync(x => x.Email == userCreate.Email) is { } userFound) {
             // 1) Se já confirmou e-mail, sempre conflita (independe do tempo)
             if (userFound.IsEmailConfirmed) {
-                return new Response(userFound) {
-                    Messages = {
-                        new() {
-                            Message = "Já existe um usuario com esse e-mail",
-                            Type = MessageType.warning
-                        }
-                    },
-                    Links = {
-                        new() {
-                            Href = "/"
-                        }
-                    },
-                    StatusCode = StatusCodes.Status409Conflict,
-                };
+                ApiResponse.Messages.Add(new() {
+                    Message = "Já existe um usuario com esse e-mail",
+                    Type = MessageType.warning
+                });
+                ApiResponse.StatusCode = StatusCodes.Status409Conflict;
+
+                return ApiResponse;
             }
 
             // 2) Usuário não confirmado: respeita janela de 10 minutos (use UTC para evitar problemas de fuso/servidor)
             var withinWindow = userFound.CreatedAt.AddMinutes(10) >= DateTime.Now;
             if (withinWindow) {
-                return new Response() {
-                    Messages = {
-                        new() {
-                            Message =
-                                "Usuário já criado e aguardando confirmação. Verifique seu e-mail ou aguarde alguns minutos para reenviar o código.",
-                            Type = MessageType.info
-                        }
-                    },
-                    StatusCode = StatusCodes.Status409Conflict,
-                };
+                ApiResponse.StatusCode = StatusCodes.Status409Conflict;
+                ApiResponse.Messages.Add(
+                    new(
+                        "Usuário já criado e aguardando confirmação. Verifique seu e-mail ou aguarde alguns minutos para reenviar o código.",
+                        MessageType.info)
+                );
+
+
+                return ApiResponse;
             }
 
-            // 3) Fora da janela: remove o registro pendente e permite recriar
-            dbContext.Users.Remove((userFound as User)!);
+            // 3) Fora da janela: atualiza o registro pendente
+            created = dbContext.Users.Update(userFound with {
+                Password = userCreate.Encrypt(),
+                CreatedAt = DateTime.Now,
+                Name = userCreate.Name,
+            });
+        }
+        else {
+            // If not found, create new user
+            created = dbContext.Users.Add(userCreate);
         }
 
-        var created = dbContext.Users.Add(userCreate);
+
         await dbContext.SaveChangesAsync();
 
         if (!UtilDbContext.HasUsers) {
@@ -85,11 +99,10 @@ public class AccountController(
             created.Entity.IsEmailConfirmed = true;
             await dbContext.SaveChangesAsync();
             UtilDbContext.HasUsers = true;
-            var login = await AuthenticationService.AuthenticateAndGenerateTokenAsync(userCreate);
+            ApiResponse = await AuthenticationService.AuthenticateAndGenerateTokenAsync(userCreate);
+            ApiResponse.StatusCode = StatusCodes.Status201Created;
 
-            return new Response(login.Data) {
-                StatusCode = 201,
-            };
+            return ApiResponse;
         }
 
         UserOtp otp = new() {
@@ -99,34 +112,27 @@ public class AccountController(
 
         await mailService.SendMailAsync("Sua senha de uso unico", new($"<div>Sua senha de uso unico é: {otp.Otp}</div>"),
             userCreate.Email);
+        ApiResponse.SetData(created.Entity);
+        ApiResponse.Messages.Add(
+            new("Usuario criado verifique seu e-mail para obter sua de uso unico", MessageType.success)
+        );
 
-        return new Response(new UserLoginResponse(created.Entity)) {
-            StatusCode = 201,
-            Messages = {
-                new() {
-                    Message = "Usuario criado, verifique seu e-mail para obter sua senha",
-                    Type = MessageType.info
-                }
-            }
-        };
+        return ApiResponse;
     }
 
     [HttpPost(nameof(ConfirmMail))]
-    public async Task<IResponse> ConfirmMail(UserConfirmMail data) {
+    public async Task<IApiResponse> ConfirmMail(UserConfirmMail data) {
         if (await dbContext.Users.FirstOrDefaultAsync(x => x.Email.ToLower().Trim() == data.Email.AsInsensitive()) is
             { } user) {
-            return await ConfirmMail(user.Id, data.Token);
+            ApiResponse = await ConfirmMail(user.Id, data.Token);
+
+            return ApiResponse;
         }
 
-        return new Response() {
-            StatusCode = StatusCodes.Status404NotFound,
-            Messages = {
-                new() {
-                    Message = "E-mail não encontrado",
-                    Type = MessageType.warning
-                }
-            }
-        };
+        ApiResponse.StatusCode = StatusCodes.Status404NotFound;
+        ApiResponse.Messages.Add(new("Email não encontrado", MessageType.warning));
+
+        return ApiResponse;
     }
 
 
@@ -137,31 +143,21 @@ public class AccountController(
     /// <param name="token"></param>
     /// <returns></returns>
     [HttpPost("{id}/" + nameof(ConfirmMail))]
-    public async Task<IResponse> ConfirmMail(int id, int token) {
+    public async Task<IApiResponse> ConfirmMail(int id, int token) {
         if (await dbContext.Users.FirstOrDefaultAsync(x => x.Id == id) is not UserResponse user) {
-            return new Response() {
-                StatusCode = StatusCodes.Status404NotFound,
-                Messages = {
-                    new() {
-                        Message = "Usuario não encontrado",
-                        Type = MessageType.warning
-                    }
-                }
-            };
+            ApiResponse.Messages.Add(new("Usuário não encontrado", MessageType.warning));
+            ApiResponse.StatusCode = StatusCodes.Status404NotFound;
+
+            return ApiResponse;
         }
 
         var otp = redisService.Get<UserOtp>(user.Email);
 
         if (otp is null || otp.Otp != token.ToString()) {
-            return new Response() {
-                StatusCode = StatusCodes.Status400BadRequest,
-                Messages = {
-                    new() {
-                        Message = "Token inválido",
-                        Type = MessageType.warning
-                    }
-                }
-            };
+            ApiResponse.Messages.Add(new("Token inválido", MessageType.warning));
+            ApiResponse.StatusCode = StatusCodes.Status400BadRequest;
+
+            return ApiResponse;
         }
 
         user.IsEmailConfirmed = true;
@@ -169,13 +165,6 @@ public class AccountController(
 
         redisService.Remove(user.Email);
 
-        return new Response(user) {
-            Messages = {
-                new() {
-                    Message = "E-mail confirmado com sucesso",
-                    Type = MessageType.success
-                }
-            }
-        };
+        return ApiResponse;
     }
 }

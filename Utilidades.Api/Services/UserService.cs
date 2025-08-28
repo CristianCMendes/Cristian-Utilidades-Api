@@ -10,7 +10,7 @@ namespace Utilidades.Api.Services;
 
 public class UserService(UtilDbContext dbContext) : IUserService {
     /// <inheritdoc />
-    public async Task<Response<IUser>> Invite(UserInviteDto data, int invitedBy) {
+    public async Task<ApiResponse<IUser>> Invite(UserInviteDto data, int invitedBy) {
         if (!data.Email.IsMail()) {
             return new() {
                 Messages = {
