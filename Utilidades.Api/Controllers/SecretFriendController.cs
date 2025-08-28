@@ -8,6 +8,7 @@ using Utilidades.Api.Models.Pagination;
 using Utilidades.Api.Models.Response;
 using Utilidades.Api.Models.SecretFriend;
 using Utilidades.Api.Models.SecretFriend.Dto;
+using Utilidades.Api.Models.SecretFriend.Interface;
 using Utilidades.Api.Services;
 
 namespace Utilidades.Api.Controllers;
@@ -18,15 +19,16 @@ public class SecretFriendController(
     IMailService mailService)
     : ApiControllerBase {
     [HttpGet(nameof(List))]
-    public async Task<Response<SecretFriend[]>> List(Pagination pagination) {
+    [ProducesResponseType<ISecretFriend[]>(200)]
+    public async Task<IResponse> List(Pagination pagination) {
         var query = dbContext.SecretFriends.AsQueryable();
         query = query.Where(x => x.Members.Any(m => m.UserId == HttpContext.GetCurrentUserId()));
 
-        return new(await query.PaginateAsync(pagination));
+        return new Response(await query.PaginateAsync(pagination));
     }
 
     [HttpGet("{id}")]
-    public async Task<Response<SecretFriend>> Get(int id) {
+    public async Task<IResponse> Get(int id) {
         var query = dbContext.SecretFriends.AsQueryable();
         if (!User.IsInRole(nameof(RoleType.Master))) {
             query = query.Where(x => x.Members.Any(m => m.UserId == HttpContext.GetCurrentUserId()));
@@ -34,23 +36,25 @@ public class SecretFriendController(
 
         var sf = await query.WhereId(id).FirstOrDefaultAsync();
 
-        return new(sf) {
+        return new Response(sf) {
             StatusCode = sf is null ? StatusCodes.Status404NotFound : StatusCodes.Status200OK,
         };
     }
 
     [HttpGet("{id}/" + nameof(Members))]
-    public async Task<Response<SecretFriendMember[]>> Members(int id, Pagination pagination) {
+    [ProducesResponseType<ISecretFriendMember>(200)]
+    public async Task<IResponse> Members(int id, Pagination pagination) {
         var query = dbContext.SecretFriendMembers.Where(x => x.SecretFriendId == id);
         if (!User.IsInRole(nameof(RoleType.Master))) {
             query = query.Where(x => x.UserId == HttpContext.GetCurrentUserId());
         }
 
-        return new(await query.PaginateAsync(pagination));
+        return new Response(await query.PaginateAsync(pagination));
     }
 
     [HttpPost(nameof(Create))]
-    public async Task<Response<SecretFriend>> Create([Bind(nameof(data.Name), nameof(data.Date),
+    [ProducesResponseType<ISecretFriend>(200)]
+    public async Task<IResponse> Create([Bind(nameof(data.Name), nameof(data.Date),
             nameof(data.Description), nameof(data.MinimumPrice), nameof(data.MaximumPrice))]
         CreateSecretFriendDto data) {
         var response = await secretFriendService.Create(data, HttpContext.GetCurrentUserId());
@@ -84,14 +88,16 @@ public class SecretFriendController(
     }
 
     [HttpPost("{id}/" + nameof(AddMember))]
-    public async Task<Response<SecretFriend>> AddMember(int id, [FromBody] AddSecretFriendMemberDto data) {
+    [ProducesResponseType<ISecretFriend>(200)]
+    
+    public async Task<IResponse> AddMember(int id, [FromBody] AddSecretFriendMemberDto data) {
         if (!await secretFriendService.CanAddMember(id, HttpContext.GetCurrentUserId())) {
-            return new() {
+            return new Response() {
                 StatusCode = StatusCodes.Status401Unauthorized,
                 Messages = {
                     new() {
                         Message = "Usuario não tem permissão para adicionar um membro no amigo secreto",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 }
 
@@ -106,7 +112,8 @@ public class SecretFriendController(
     }
 
     [HttpPost("{id}/" + nameof(Draw))]
-    public async Task<Response<SecretFriend>> Draw(int id) {
+    [ProducesResponseType<ISecretFriend>(200)]
+    public async Task<IResponse> Draw(int id) {
         var response = await secretFriendService.Draw(id, HttpContext.GetCurrentUserId());
 
         var sf = response.Data;

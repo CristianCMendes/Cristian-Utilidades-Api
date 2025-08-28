@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis.Elfie.Extensions;
+using Utilidades.Api.Extensions;
 
 namespace Utilidades.Api.Models.Identity.Dto;
 

@@ -1,14 +1,13 @@
-﻿using EntityEase.Models.Interfaces.Identity;
-using EntityEase.Models.Interfaces.Identity.Naming;
-using EntityEase.Models.Interfaces.Tracking;
+﻿using EntityEase.Models.Interfaces.Tracking;
 using Utilidades.Api.Models.Identity;
 using Utilidades.Api.Models.SecretFriend.Dto;
+using Utilidades.Api.Models.SecretFriend.Interface;
 
 namespace Utilidades.Api.Models.SecretFriend;
 
-public record SecretFriend : IEEIdentifiable, IEENamed, IEECreatableBy<User, int> {
+public record SecretFriend : ISecretFriend, IEECreatableBy<User, int> {
     public int Id { get; set; }
-    public string Name { get; set; }
+    public string Name { get; set; } 
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; }
     public virtual User? CreatedByEntity { get; set; }

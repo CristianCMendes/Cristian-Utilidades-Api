@@ -19,7 +19,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
                 Messages = {
                     new() {
                         Message = "Amigo secreto não encontrado",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 },
                 StatusCode = StatusCodes.Status404NotFound
@@ -33,7 +33,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
                 Messages = {
                     new() {
                         Message = "Usuario não é membro do amigo secreto",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 },
                 StatusCode = StatusCodes.Status403Forbidden
@@ -46,7 +46,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
                     Messages = {
                         new() {
                             Message = "Apenas administradores podem girar o amigo secreto",
-                            Type = MessageType.Warning
+                            Type = MessageType.warning
                         }
                     },
                     StatusCode = StatusCodes.Status403Forbidden
@@ -103,7 +103,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
                 Messages = {
                     new ResponseMessage() {
                         Message = "Usuario não encontrado",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 },
                 StatusCode = StatusCodes.Status404NotFound
@@ -115,7 +115,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
                 Messages = {
                     new() {
                         Message = "Amigo secreto não encontrado",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 },
                 StatusCode = StatusCodes.Status404NotFound,
@@ -127,7 +127,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
                 Messages = {
                     new() {
                         Message = "Usuario já é membro do amigo secreto",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 }
             };
@@ -143,7 +143,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
             Messages = {
                 new ResponseMessage() {
                     Message = "Membro adicionado com sucesso",
-                    Type = MessageType.Success
+                    Type = MessageType.success
                 }
             }
         };

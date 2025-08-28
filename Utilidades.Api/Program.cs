@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Http.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using NSwag.Annotations;
 using Utilidades.Api.Context;
 using Utilidades.Api.Services;
 
@@ -40,6 +41,8 @@ builder.Services.Configure<JsonOptions>(o => {
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 
 });
+
+
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -82,6 +85,7 @@ builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddScoped<IMailService, MailService>();
 builder.Services.AddScoped<ISecretFriendService, SecretFriendService>();
+builder.Services.AddScoped<IUserService, UserService>();
 
 builder.Services.AddOpenApi("v1", options => {
     options.AddDocumentTransformer((document, context, ct) => {
@@ -95,55 +99,68 @@ builder.Services.AddOpenApi("v1", options => {
 
         return Task.CompletedTask;
     });
+    
+    // Remove propriedades profundas/recursivas do schema para evitar excesso de profundidade
+    options.AddSchemaTransformer((schema, context, ct) => {
+        if (context.GetType() == typeof(Utilidades.Api.Models.Identity.Dto.UserResponse) ||
+            context.GetType() == typeof(Utilidades.Api.Models.Identity.User)) {
+            schema.Properties?.Remove("invitedBy");
+            schema.Properties?.Remove("ownSecretFriends");
+            schema.Properties?.Remove("secretFriendMembers");
+            schema.Properties?.Remove("secretFriendWishlists");
+            schema.Properties?.Remove("roles");
+        }
+        return Task.CompletedTask;
+    });
+
 
     // Add security scheme to all endpoints.
     options.AddDocumentTransformer((document, context, ct) => {
         document.Components ??= new OpenApiComponents();
+        
 
-        var bearerScheme = new OpenApiSecurityScheme {
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            In = ParameterLocation.Header,
-            Name = "Authorization",
-            Description = "Envie o token JWT no header Authorization: Bearer {token}",
-        };
+    var bearerScheme = new OpenApiSecurityScheme {
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Name = "Authorization",
+        Description = "Envie o token JWT no header Authorization: Bearer {token}",
+    };
 
-        document.Components.SecuritySchemes["Bearer"] = bearerScheme;
+    document.Components.SecuritySchemes["Bearer"] = bearerScheme;
 
-        var globalRequirement = new OpenApiSecurityRequirement {
-            [new() {
-                Reference = new() {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            }] = Array.Empty<string>()
-        };
+    var globalRequirement = new OpenApiSecurityRequirement {
+        [new() {
+            Reference = new() {
+                Type = ReferenceType.SecurityScheme,
+                Id = "Bearer"
+            }
+        }] = Array.Empty<string>()
+    };
 
-        document.SecurityRequirements ??= new List<OpenApiSecurityRequirement>();
-        // Evita duplicar em execuções repetidas
-        if (!document.SecurityRequirements.Any())
-            document.SecurityRequirements.Add(globalRequirement);
+    document.SecurityRequirements ??= new List<OpenApiSecurityRequirement>();
+    // Evita duplicar em execuções repetidas
+    if (!document.SecurityRequirements.Any())
+        document.SecurityRequirements.Add(globalRequirement);
 
-        return Task.CompletedTask;
-    });
-
-    // Allows anonymous access to controllers with the [AllowAnonymous] attribute.
-    options.AddOperationTransformer((operation, context, ct) => {
-        var isAnonymous = context.Description.ActionDescriptor.EndpointMetadata
-            .OfType<AllowAnonymousAttribute>()
-            .Any();
-
-        if (isAnonymous) {
-            operation.Security?.Clear();
-        }
-
-        return Task.CompletedTask;
-    });
+    return Task.CompletedTask;
 });
 
-var app = builder.Build();
+// Allows anonymous access to controllers with the [AllowAnonymous] attribute.
+options.AddOperationTransformer((operation, context, ct) => {
+    var isAnonymous = context.Description.ActionDescriptor.EndpointMetadata
+        .OfType<AllowAnonymousAttribute>()
+        .Any();
 
+    if (isAnonymous) {
+        operation.Security?.Clear();
+    }
+
+    return Task.CompletedTask;
+});
+});
+var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) {
@@ -162,12 +179,13 @@ app.UseAuthorization();
 
 await using (var validationScope = app.Services.CreateAsyncScope()) {
     var dbContext = validationScope.ServiceProvider.GetRequiredService<UtilDbContext>();
-    
+
     try {
         // Garante que o banco foi criado e tá na ultima versão.
         if (!dbContext.Database.HasPendingModelChanges()) {
             await dbContext.Database.MigrateAsync();
         }
+
         // Ve se tem usuarios no banco, caso não tenha o primeiro vai ter o privilegio de administrador.
         UtilDbContext.HasUsers = await dbContext.Users.AnyAsync();
     }

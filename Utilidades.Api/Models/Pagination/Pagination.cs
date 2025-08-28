@@ -22,5 +22,4 @@ public record Pagination : IPagination {
         set => _pageSize = int.Clamp(value, 1, 50);
     }
 
-   
 }

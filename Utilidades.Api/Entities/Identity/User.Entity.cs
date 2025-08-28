@@ -15,6 +15,7 @@ public class UserEntity : EEEntity<User> {
             entity.Property(e => e.IsActive);
             entity.Property(e => e.IsEmailConfirmed);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasOne(e => e.InvitedBy).WithMany().HasForeignKey(e => e.InvitedById);
 
             entity.HasIndex(e => e.Email).IsUnique();
         });

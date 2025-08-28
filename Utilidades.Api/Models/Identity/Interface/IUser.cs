@@ -8,4 +8,5 @@ namespace Utilidades.Api.Models.Identity.Interface;
 public interface IUser : IEEIdentifiable, IEENamed, IEEActivable, IEECreatable {
     public string Email { get; set; }
     public bool IsEmailConfirmed { get; set; } 
+    public int? InvitedById { get; set; }
 }

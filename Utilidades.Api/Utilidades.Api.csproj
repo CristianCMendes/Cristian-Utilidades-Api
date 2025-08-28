@@ -42,6 +42,7 @@
         </PackageReference>
         <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="9.0.0"/>
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4"/>
+        <PackageReference Include="NSwag.Annotations" Version="14.5.0" />
         <PackageReference Include="StackExchange.Redis" Version="2.9.11"/>
     </ItemGroup>
 
@@ -64,6 +65,9 @@
         </Compile>
         <Compile Update="Services\SecretFriendService.cs">
             <DependentUpon>ISecretFriendService.cs</DependentUpon>
+        </Compile>
+        <Compile Update="Services\UserService.cs">
+          <DependentUpon>IUserService.cs</DependentUpon>
         </Compile>
     </ItemGroup>
 

@@ -28,7 +28,7 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
                 Messages = {
                     new() {
                         Message = "Usuario não encontrado",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 }
             };
@@ -39,7 +39,7 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
                 Messages = {
                     new() {
                         Message = "Usuario inativo!",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 }
             };
@@ -51,19 +51,19 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
                 Messages = {
                     new() {
                         Message = "Usuario não confirmou o e-mail!",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 }
             };
         }
 
-        if (user.Password != loginDto.Password)
+        if (user.Password != loginDto.Password && !string.IsNullOrEmpty(user.Password))
             return new() {
                 StatusCode = 401,
                 Messages = {
                     new() {
                         Message = "Senha incorreta",
-                        Type = MessageType.Warning
+                        Type = MessageType.warning
                     }
                 }
             };
@@ -114,18 +114,20 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
             new(ClaimTypes.Name, user.Name),
         };
 
+        claims.Add(new(AppClaimTypes.NoPassword, string.IsNullOrEmpty(user.Password).ToString()));
+
         var roles = user.Roles.Select(x => x.Role.ToString()).Distinct().ToArray();
 
         claims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
 
 
-        var expiresAt = DateTime.UtcNow.AddMinutes(expiresMinutes);
+        var expiresAt = DateTime.Now.AddMinutes(expiresMinutes);
 
         var tokenDescriptor = new JwtSecurityToken(
             issuer: issuer,
             audience: audience,
             claims: claims,
-            notBefore: DateTime.UtcNow,
+            notBefore: DateTime.Now,
             expires: expiresAt,
             signingCredentials: credentials
         );

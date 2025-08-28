@@ -33,6 +33,7 @@ public class UtilDbContext : EEDbContext<UtilDbContext> {
         if (Database.IsNpgsql()) {
             configurationBuilder.Properties<DateTime>(x => {
                 x.HaveColumnType("timestamp with time zone");
+                AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
                 
             });
         }

@@ -28,11 +28,13 @@ public class Response<T> : JsonResult, IResponse<T> where T : class {
 
     /// <inheritdoc />
     public override Task ExecuteResultAsync(ActionContext context) {
+
         Value = new {
             Data,
             Pagination,
             Messages,
-            Links
+            Links,
+            StatusCode = StatusCode ?? context.HttpContext.Response.StatusCode
         };
 
         return base.ExecuteResultAsync(context);
@@ -40,11 +42,13 @@ public class Response<T> : JsonResult, IResponse<T> where T : class {
 
     /// <inheritdoc />
     public override void ExecuteResult(ActionContext context) {
+
         Value = new {
             Data,
             Pagination,
             Messages,
-            Links
+            Links,
+            StatusCode = StatusCode ?? context.HttpContext.Response.StatusCode
         };
         base.ExecuteResult(context);
     }
@@ -52,7 +56,7 @@ public class Response<T> : JsonResult, IResponse<T> where T : class {
 
 public class Response : Response<object> {
     public Response() : base(null) { }
-    public Response(object data) : base(data) { }
-    public Response(object data, PaginationResponse pagination) : base(data, pagination) { }
-    public Response((object Data, PaginationResponse Pagination) data) : base(data) { }
+    public Response(object? data) : base(data) { }
+    public Response(object? data, PaginationResponse pagination) : base(data, pagination) { }
+    public Response((object? Data, PaginationResponse Pagination) data) : base(data) { }
 }

@@ -1,0 +1,8 @@
+root = true
+[*.cs]
+dotnet_naming_rule.enum_member_camelcase.severity = suggestion
+dotnet_naming_rule.enum_member_camelcase.style = camel_case_style
+dotnet_naming_rule.enum_member_camelcase.symbols = enum_members
+dotnet_naming_style.camel_case_style.capitalization = camel_case
+dotnet_naming_symbols.enum_members.applicable_kinds = enum_members
+dotnet_naming_symbols.enum_members.applicable_accessibilities = public, internal, private, protected, protected_internal, private_protected

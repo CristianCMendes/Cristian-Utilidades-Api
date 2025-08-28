@@ -17,9 +17,9 @@ public class RedisService : IRedisService {
     }
 
     /// <inheritdoc />
-    public void Set<T>(string key, T? value) {
+    public void Set<T>(string key, T? value, TimeSpan? expiry = null) {
         if (value == null) return;
-        _database.StringSet(key, JsonSerializer.Serialize(value));
+        _database.StringSet(key, JsonSerializer.Serialize(value), expiry);
     }
 
     /// <inheritdoc />

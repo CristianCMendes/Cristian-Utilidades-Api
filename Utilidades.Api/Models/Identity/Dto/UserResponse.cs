@@ -1,6 +1,7 @@
 ﻿using EntityEase.Models.Interfaces.Identity;
 using EntityEase.Models.Interfaces.Identity.Naming;
 using EntityEase.Models.Interfaces.Status;
+using NSwag.Annotations;
 using Utilidades.Api.Models.Identity.Interface;
 using Utilidades.Api.Models.SecretFriend;
 
@@ -17,11 +18,17 @@ public record UserResponse : IUser {
 
     public bool IsEmailConfirmed { get; set; } = false;
 
-    public virtual ICollection<SecretFriend.SecretFriend> OwnSecretFriends { get; set; } = [];
-    public virtual ICollection<SecretFriendMember> SecretFriendMembers { get; set; } = [];
-    public virtual ICollection<SecretFriendWishlist> SecretFriendWishlists { get; set; } = [];
-    public virtual ICollection<UserRoles> Roles { get; set; } = [];
-    
+    /// <inheritdoc />
+    public int? InvitedById { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+    [OpenApiIgnore] public virtual User? InvitedBy { get; set; }
+
+    [OpenApiIgnore]public virtual ICollection<SecretFriend.SecretFriend> OwnSecretFriends { get; set; } = [];
+    [OpenApiIgnore]public virtual ICollection<SecretFriendMember> SecretFriendMembers { get; set; } = [];
+    [OpenApiIgnore]public virtual ICollection<SecretFriendWishlist> SecretFriendWishlists { get; set; } = [];
+    [OpenApiIgnore]public virtual ICollection<UserRoles> Roles { get; set; } = [];
+
     public UserResponse() { }
 
     public UserResponse(User user) : this() {
@@ -30,12 +37,16 @@ public record UserResponse : IUser {
         Email = user.Email;
         IsActive = user.IsActive;
         IsEmailConfirmed = user.IsEmailConfirmed;
+        InvitedById = user.InvitedById;
+        InvitedBy = user.InvitedBy;
         SecretFriendMembers = user.SecretFriendMembers;
         SecretFriendWishlists = user.SecretFriendWishlists;
         OwnSecretFriends = user.OwnSecretFriends;
         Roles = user.Roles;
     }
 
+    public UserResponse(IUser user) : this((User)user) { }
+    public UserResponse(IUserLogin user) : this((User)user) { }
+
     /// <inheritdoc />
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
