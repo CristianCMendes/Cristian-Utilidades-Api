@@ -19,13 +19,18 @@ var envfile = Directory.GetCurrentDirectory() + "/.env";
 var hasEnvFile = File.Exists(envfile);
 if (hasEnvFile) {
     Env.Load(envfile);
+
+    // Load .env variables, and put them in the Configuration object.
+    builder.Configuration.AddEnvironmentVariables(x => {
+        x.Prefix = "UTILIDADES_API_";
+    });
 }
 
 EEConfig.EntityNamingMode = NamingMode.SnakeCase;
 // Add services to the container.
 builder.Services.AddAuthorization();
 builder.Services.AddDbContext<UtilDbContext>(opt => {
-    opt.UseNpgsql(Environment.GetEnvironmentVariable("CONNECTIONSTRINGS_DB"));
+    opt.UseNpgsql(builder.Configuration.GetConnectionString("DB"));
     opt.UseSnakeCaseNamingConvention();
     opt.EnableSensitiveDataLogging();
     opt.UseLazyLoadingProxies(false);
@@ -39,7 +44,6 @@ builder.Services.Configure<JsonOptions>(o => {
     o.SerializerOptions.MaxDepth = 256;
     o.SerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles;
     o.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
-
 });
 
 
@@ -86,6 +90,7 @@ builder.Services.AddScoped<IRedisService, RedisService>();
 builder.Services.AddScoped<IMailService, MailService>();
 builder.Services.AddScoped<ISecretFriendService, SecretFriendService>();
 builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<RedisContext>();
 
 builder.Services.AddOpenApi("v1", options => {
     options.AddDocumentTransformer((document, context, ct) => {
@@ -99,7 +104,7 @@ builder.Services.AddOpenApi("v1", options => {
 
         return Task.CompletedTask;
     });
-    
+
     // Remove propriedades profundas/recursivas do schema para evitar excesso de profundidade
     options.AddSchemaTransformer((schema, context, ct) => {
         if (context.GetType() == typeof(Utilidades.Api.Models.Identity.Dto.UserResponse) ||
@@ -110,6 +115,7 @@ builder.Services.AddOpenApi("v1", options => {
             schema.Properties?.Remove("secretFriendWishlists");
             schema.Properties?.Remove("roles");
         }
+
         return Task.CompletedTask;
     });
 
@@ -117,48 +123,48 @@ builder.Services.AddOpenApi("v1", options => {
     // Add security scheme to all endpoints.
     options.AddDocumentTransformer((document, context, ct) => {
         document.Components ??= new OpenApiComponents();
-        
 
-    var bearerScheme = new OpenApiSecurityScheme {
-        Type = SecuritySchemeType.Http,
-        Scheme = "bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Name = "Authorization",
-        Description = "Envie o token JWT no header Authorization: Bearer {token}",
-    };
 
-    document.Components.SecuritySchemes["Bearer"] = bearerScheme;
+        var bearerScheme = new OpenApiSecurityScheme {
+            Type = SecuritySchemeType.Http,
+            Scheme = "bearer",
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Name = "Authorization",
+            Description = "Envie o token JWT no header Authorization: Bearer {token}",
+        };
 
-    var globalRequirement = new OpenApiSecurityRequirement {
-        [new() {
-            Reference = new() {
-                Type = ReferenceType.SecurityScheme,
-                Id = "Bearer"
-            }
-        }] = Array.Empty<string>()
-    };
+        document.Components.SecuritySchemes["Bearer"] = bearerScheme;
 
-    document.SecurityRequirements ??= new List<OpenApiSecurityRequirement>();
-    // Evita duplicar em execuções repetidas
-    if (!document.SecurityRequirements.Any())
-        document.SecurityRequirements.Add(globalRequirement);
+        var globalRequirement = new OpenApiSecurityRequirement {
+            [new() {
+                Reference = new() {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            }] = Array.Empty<string>()
+        };
 
-    return Task.CompletedTask;
-});
+        document.SecurityRequirements ??= new List<OpenApiSecurityRequirement>();
+        // Evita duplicar em execuções repetidas
+        if (!document.SecurityRequirements.Any())
+            document.SecurityRequirements.Add(globalRequirement);
+
+        return Task.CompletedTask;
+    });
 
 // Allows anonymous access to controllers with the [AllowAnonymous] attribute.
-options.AddOperationTransformer((operation, context, ct) => {
-    var isAnonymous = context.Description.ActionDescriptor.EndpointMetadata
-        .OfType<AllowAnonymousAttribute>()
-        .Any();
+    options.AddOperationTransformer((operation, context, ct) => {
+        var isAnonymous = context.Description.ActionDescriptor.EndpointMetadata
+            .OfType<AllowAnonymousAttribute>()
+            .Any();
 
-    if (isAnonymous) {
-        operation.Security?.Clear();
-    }
+        if (isAnonymous) {
+            operation.Security?.Clear();
+        }
 
-    return Task.CompletedTask;
-});
+        return Task.CompletedTask;
+    });
 });
 var app = builder.Build();
 

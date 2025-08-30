@@ -5,16 +5,17 @@ using MimeKit;
 
 namespace Utilidades.Api.Services;
 
-public class MailService : IMailService {
+public class MailService(IConfiguration configuration) : IMailService {
     /// <inheritdoc />
     public async Task SendMailAsync(string subject, HtmlString body, string toEmail,
         CancellationToken cancellationToken = default) {
 
+        var section = configuration.GetSection("Mail");
         var mailClient = new SmtpClient();
-        var host = Environment.GetEnvironmentVariable("MAIL_HOST");
-        var port = int.Parse(Environment.GetEnvironmentVariable("MAIL_PORT") ?? "587");
-        var username = Environment.GetEnvironmentVariable("MAIL_USERNAME");
-        var password = Environment.GetEnvironmentVariable("MAIL_PASSWORD");
+        var host = section["HOST"];
+        var port = int.Parse(section["PORT"] ?? "587");
+        var username = section["USERNAME"];
+        var password = section["PASSWORD"];
 
         if (string.IsNullOrEmpty(host)) {
             throw new NullReferenceException("Host de email não definido nas variaveis do ambiente");

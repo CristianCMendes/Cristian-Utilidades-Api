@@ -4,8 +4,8 @@ using Utilidades.Api.Context;
 
 namespace Utilidades.Api.Services;
 
-public class RedisService : IRedisService {
-    private IDatabase _database = RedisContext.Database;
+public class RedisService(RedisContext redisContext) : IRedisService {
+    private readonly IDatabase _database = redisContext.Database;
 
     /// <inheritdoc />
     public T? Get<T>(string key) {
