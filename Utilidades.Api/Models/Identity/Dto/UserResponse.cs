@@ -47,6 +47,4 @@ public record UserResponse : IUser {
 
     public UserResponse(IUser user) : this((User)user) { }
     public UserResponse(IUserLogin user) : this((User)user) { }
-
-    /// <inheritdoc />
 }

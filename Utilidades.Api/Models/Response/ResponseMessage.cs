@@ -10,8 +10,9 @@ public enum MessageType {
 public class ResponseMessage {
     public string Message { get; set; }
     public MessageType Type { get; set; }
+    public bool Important { get; set; } = false;
 
-    public ResponseMessage(string message, MessageType type) {
+    public ResponseMessage(string message, MessageType type, bool important = false) {
         Message = message;
         Type = type;
     }

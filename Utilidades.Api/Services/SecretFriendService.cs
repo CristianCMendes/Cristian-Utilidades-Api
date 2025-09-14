@@ -96,7 +96,7 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
     public async Task<ApiResponse<SecretFriend>> AddMember(int secretFriendId, AddSecretFriendMemberDto data) {
         var sf = await dbContext.SecretFriends.Include(x => x.Members).WhereId(secretFriendId).FirstOrDefaultAsync();
         var user = await dbContext.Users
-            .Where(x => x.Id == data.UserId || data.Email != null && x.Email == data.Email.AsInsensitive())
+            .Where(x => x.Id == data.UserId || data.Email != null && x.Email == data.Email.ToInsensitive())
             .FirstOrDefaultAsync();
 
         if (user is null) {
@@ -182,12 +182,12 @@ public class SecretFriendService(UtilDbContext dbContext) : ISecretFriendService
         }
 
         if (filters.Name is { Length: > 0 } name) {
-            query = query.Where(x => x.Name.ToLower().Trim().Contains(name.AsInsensitive()));
+            query = query.Where(x => x.Name.ToLower().Trim().Contains(name.ToInsensitive()));
         }
 
         if (filters.Description is { Length: > 0 } description) {
             query = query.Where(x =>
-                x.Description != null && x.Description.ToLower().Trim().Contains(description.AsInsensitive()));
+                x.Description != null && x.Description.ToLower().Trim().Contains(description.ToInsensitive()));
         }
 
         if (filters.DateMin is { } minDate) {

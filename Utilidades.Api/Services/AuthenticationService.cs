@@ -59,7 +59,8 @@ public class AuthenticationService(UtilDbContext dbContext, IConfiguration confi
             };
         }
 
-        if (user.Password != loginDto.Encrypt(user.CreatedAt.Date.Day) &&
+        if ((user.Password != loginDto.Encrypt(user.CreatedAt.Date.Day) ||
+             user.Password == loginDto.Password) &&
             !string.IsNullOrEmpty(user.Password))
             return new() {
                 StatusCode = 401,

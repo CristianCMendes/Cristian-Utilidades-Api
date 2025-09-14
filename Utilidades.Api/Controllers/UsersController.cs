@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Utilidades.Api.Context;
+using Utilidades.Api.Controllers.Attributes;
 using Utilidades.Api.Extensions;
 using Utilidades.Api.Models.Identity;
 using Utilidades.Api.Models.Identity.Dto;
@@ -21,7 +22,7 @@ public class UsersController(
     IConfiguration configuration)
     : ApiControllerBase {
     [HttpGet(nameof(List))]
-    [Authorize(Roles = $"{nameof(RoleType.Master)},{nameof(RoleType.ListAllUsers)}")]
+    [NeedPermission(RoleType.ListAllUsers)]
     public async Task<IApiResponse> List(Pagination pagination) {
         return new ApiResponse(await dbContext.Users.PaginateAsync<UserResponse>(pagination)) {
             StatusCode = 200
@@ -36,7 +37,7 @@ public class UsersController(
     }
 
     [HttpPost("{id}/addRole")]
-    [Authorize(Roles = nameof(RoleType.Master))]
+    [NeedPermission(RoleType.Master)]
     public async Task<IApiResponse> AddRole(int id, [FromBody] string role) {
         var user = await dbContext.Users.WhereId(id).Include(x => x.Roles).FirstOrDefaultAsync();
 
@@ -75,7 +76,7 @@ public class UsersController(
     }
 
     [HttpGet("{id}/SecretFriends")]
-    [Authorize(Roles = nameof(RoleType.Master))]
+    [NeedPermission(RoleType.Master)]
     public async Task<IApiResponse> GetSecretFriends(int id, Pagination pagination) {
         return new ApiResponse<SecretFriend[]>(await dbContext.SecretFriends
             .Include(s => s.Members.Where(m => m.UserId == id))

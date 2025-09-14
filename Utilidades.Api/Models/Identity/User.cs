@@ -10,7 +10,7 @@ public record User : UserResponse {
         return new() {
             Name = userCreate.Name,
             Email = userCreate.Email,
-            Password = userCreate.Encrypt()
+            Password = userCreate.Password,
         };
     }
 }

@@ -71,10 +71,8 @@
         </Compile>
     </ItemGroup>
 
-    <ItemGroup>
-        <None Update=".env">
-            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-        </None>
+    <ItemGroup Condition=" '$(Configuration)' == 'Debug' ">
+        
     </ItemGroup>
 
     <ItemGroup>

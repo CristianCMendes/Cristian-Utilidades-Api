@@ -6,8 +6,6 @@ using Utilidades.Api.Models.Identity;
 namespace Utilidades.Api.Models.SecretFriend.Interface;
 
 public interface ISecretFriend : IEEIdentifiable, IEENamed {
-    public int Id { get; set; }
-    public string Name { get; set; }
     public string? Description { get; set; }
     public DateTime CreatedAt { get; set; }
     public int CreatedById { get; set; }

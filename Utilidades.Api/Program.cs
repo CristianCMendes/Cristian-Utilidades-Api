@@ -11,20 +11,34 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using NSwag.Annotations;
+using NuGet.Protocol;
 using Utilidades.Api.Context;
+using Utilidades.Api.Controllers;
 using Utilidades.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
 var envfile = Directory.GetCurrentDirectory() + "/.env";
+
 var hasEnvFile = File.Exists(envfile);
 if (hasEnvFile) {
+    // Load .env variables
     Env.Load(envfile);
-
-    // Load .env variables, and put them in the Configuration object.
-    builder.Configuration.AddEnvironmentVariables(x => {
-        x.Prefix = "UTILIDADES_API_";
-    });
 }
+
+// Put any env variables that start with UTILIDADES_API_ in the configuration object.
+builder.Configuration.AddEnvironmentVariables(x => {
+    x.Prefix = "UTILIDADES_API_";
+});
+
+var apiKeysSection = builder.Configuration.GetSection("ALLOWED_KEYS");
+for (int i = 0; i < apiKeysSection.GetChildren().Count(); i++) {
+    var apikey = apiKeysSection.GetChildren().ElementAt(i).Value;
+    if (apikey != null) {
+        ApiControllerBase.AddApiKey(apikey);
+    }
+}
+
 
 EEConfig.EntityNamingMode = NamingMode.SnakeCase;
 // Add services to the container.
@@ -32,8 +46,11 @@ builder.Services.AddAuthorization();
 builder.Services.AddDbContext<UtilDbContext>(opt => {
     opt.UseNpgsql(builder.Configuration.GetConnectionString("DB"));
     opt.UseSnakeCaseNamingConvention();
-    opt.EnableSensitiveDataLogging();
     opt.UseLazyLoadingProxies(false);
+
+    if (builder.Environment.IsDevelopment()) {
+        opt.EnableSensitiveDataLogging();
+    }
 });
 
 
@@ -167,10 +184,23 @@ builder.Services.AddOpenApi("v1", options => {
     });
 });
 var app = builder.Build();
+app.MapOpenApi();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) {
-    app.MapOpenApi();
+    Console.WriteLine("Starting in development mode.");
+
+    app.MapGet("/env", () => {
+        var conf = builder.Configuration;
+
+        return conf.AsEnumerable();
+    });
+
+    app.MapGet("/", (context) => {
+        context.Response.Redirect("/openapi/v1.json");
+
+        return Task.CompletedTask;
+    });
 }
 
 
@@ -178,7 +208,7 @@ app.MapControllers();
 
 app.UseResponseCaching();
 app.UseResponseCompression();
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();

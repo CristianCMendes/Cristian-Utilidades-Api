@@ -43,6 +43,7 @@ public class AccountController(
         UserCreateDto userCreate) {
 
         EntityEntry<User> created;
+        userCreate.SetEncrypted();
 
         ApiResponse.Links.AddRange(
             LinkRef(nameof(Login), routeData: new { userCreate.Email, password = "*******" }, method: Method.POST),
@@ -77,7 +78,7 @@ public class AccountController(
 
             // 3) Fora da janela: atualiza o registro pendente
             created = dbContext.Users.Update(userFound with {
-                Password = userCreate.Encrypt(),
+                Password = userCreate.Password,
                 CreatedAt = DateTime.Now,
                 Name = userCreate.Name,
             });
@@ -122,7 +123,7 @@ public class AccountController(
 
     [HttpPost(nameof(ConfirmMail))]
     public async Task<IApiResponse> ConfirmMail(UserConfirmMail data) {
-        if (await dbContext.Users.FirstOrDefaultAsync(x => x.Email.ToLower().Trim() == data.Email.AsInsensitive()) is
+        if (await dbContext.Users.FirstOrDefaultAsync(x => x.Email.ToLower().Trim() == data.Email.ToInsensitive()) is
             { } user) {
             ApiResponse = await ConfirmMail(user.Id, data.Token);
 
